@@ -6,6 +6,7 @@
 
 #include <SPI.h>
 #include "Adafruit_BLE_UART.h"
+#include <Thread.h>
 
 #define HIGH 0x1
 #define LOW  0x0
@@ -19,7 +20,9 @@
 #define ADAFRUITBLE_RST 9
 
 Adafruit_BLE_UART BTLEserial = Adafruit_BLE_UART(ADAFRUITBLE_REQ, ADAFRUITBLE_RDY, ADAFRUITBLE_RST);
+Thread btThread = Thread();
 
+const char RELOAD_COMMAND[] = "Reload";
 const int MAX_AMMO = 30;
 int amountOfAmmo = MAX_AMMO;
 
@@ -31,18 +34,18 @@ int SPEED = 9; //How fast the numbers deincrement when in machine gun mode
 int timeLapse = 0; //A counter for the determing when to deincrement machine gun mode ammo
 
 //Pins of the display
-const int DIGIT_TOP_BAR = 2; //14
-const int DIGIT_MIDDLE_VERTICAL_BARS = 3; //15
-const int DIGIT_MIDDLE_HORIZONTAL_BARS = 4; //16
-const int DIGIT_UPPER_RIGHT_VERTICAL_BAR = 5; //17
-const int DIGIT_LOWER_RIGHT_VERTICAL_BAR = 6; //18
-const int DIGIT_LOWER_LEFT_VERTICAL_BAR = 7; //19
-const int DIGIT_UPPER_LEFT_VERTICAL_BAR = 8; //3
-const int DIGIT_BOTTOM_BAR = 9; //4
-const int BUTTON_PIN = 10; //5
-const int LEFT_NUMBER_DISPLAY = 11; //6
-const int RIGHT_NUMBER_DISPLAY = 12; //7
-const int SWITCH = 13; //8
+const int DIGIT_TOP_BAR = 14; //2
+const int DIGIT_MIDDLE_VERTICAL_BARS = 15; //3
+const int DIGIT_MIDDLE_HORIZONTAL_BARS = 16; //4
+const int DIGIT_UPPER_RIGHT_VERTICAL_BAR = 17; //5
+const int DIGIT_LOWER_RIGHT_VERTICAL_BAR = 18; //6
+const int DIGIT_LOWER_LEFT_VERTICAL_BAR = 19; //7
+const int DIGIT_UPPER_LEFT_VERTICAL_BAR = 3; //8
+const int DIGIT_BOTTOM_BAR = 4; //9
+const int BUTTON_PIN = 5; //10
+const int LEFT_NUMBER_DISPLAY = 6; //11
+const int RIGHT_NUMBER_DISPLAY = 7; //12
+const int SWITCH = 8; //13
 
 //turns on and off led bars
 void displayLEDBar(int pinNumber, boolean isOn) {
@@ -148,6 +151,8 @@ void setup() {
   Serial.begin(9600);
   while(!Serial); // Wait for serial init
   BTLEserial.begin();
+  btThread.onRun(bluetoothThreadMain);
+  btThread.setInterval(100);
 }
 
 void testBarsAreWorking() {
@@ -265,8 +270,7 @@ char * readBluetooth(Adafruit_BLE_UART BTLEserial) {
     Serial.print("* "); Serial.print(bytesavailable); Serial.println(F(" bytes available from BTLE"));
   }
 
-  char * buffer = char[bytesavailable];
-
+  char * buffer = (char *) calloc(bytesavailable, sizeof(char));
   for (int i = 0; i < bytesavailable; i++) {
     buffer[i] = BTLEserial.read();
   }
@@ -274,10 +278,33 @@ char * readBluetooth(Adafruit_BLE_UART BTLEserial) {
   return buffer;
 }
 
-void sendBluetooth(Adafruit_BLE_UART BTLEserial, char * sendbuffer, int sendbuffersize) {
-  /*Serial.print(F("\n* Sending -> \"")); Serial.print((char *)sendbuffer); Serial.println("\"");*/
-  // write the data
+void sendBluetooth(Adafruit_BLE_UART BTLEserial, uint8_t * sendbuffer, char sendbuffersize) {
+  //Serial.print(F("\n* Sending -> \"")); Serial.print((char *)sendbuffer); Serial.println("\"");
   BTLEserial.write(sendbuffer, sendbuffersize);
+}
+
+void sendAmmoOverBluetooth() {
+  char strlength = amountOfAmmo >= 10 ? 3 : 2;
+  char str[strlength];
+  sprintf(str, "%d", amountOfAmmo);
+  sendBluetooth(BTLEserial, (uint8_t*)str, strlength);
+}
+
+boolean checkForReloadCommand() {
+  if (BTLEserial.available() > 0) {
+    char * message = readBluetooth(BTLEserial);
+    int result = strcmp(message, RELOAD_COMMAND);
+    if (result == 0) {
+      Serial.println("Reload");
+      return true;
+    }
+  }
+  return false;
+}
+
+void bluetoothThreadMain() {
+  sendAmmoOverBluetooth();
+  boolean reload = checkForReloadCommand();
 }
 
 // the loop function runs over and over again forever
@@ -317,15 +344,16 @@ void loop() {
   }
   displayAmmo();
 
-  BTLEserial.pollACI();
-  aci_evt_opcode_t status = BTLEserial.getState();
+  // Grab the ammo count and send it over bluetooth
+  if (btThread.shouldRun()) {
+    BTLEserial.pollACI();
+    aci_evt_opcode_t status = BTLEserial.getState();
 
-  if (status == ACI_EVT_CONNECTED) {
-    int strlength = 2;
-    char str[strlength];
-    sprintf(str, "%d", amountOfAmmo);
-    sendBluetooth(BTLEserial, str, strlength);
+    if (status == ACI_EVT_CONNECTED) {
+          btThread.run();
+    }
   }
+
 
   delay(5);
 }
