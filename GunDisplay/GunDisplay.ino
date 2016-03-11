@@ -20,7 +20,8 @@
 #define ADAFRUITBLE_RST 9
 
 Adafruit_BLE_UART BTLEserial = Adafruit_BLE_UART(ADAFRUITBLE_REQ, ADAFRUITBLE_RDY, ADAFRUITBLE_RST);
-Thread btThread = Thread();
+Thread btSendThread = Thread();
+Thread btReceiveThread = Thread();
 
 const char RELOAD_COMMAND[] = "Reload";
 const int RELOAD_COMMAND_LENGTH = 6;
@@ -152,8 +153,12 @@ void setup() {
   Serial.begin(9600);
   while(!Serial); // Wait for serial init
   BTLEserial.begin();
-  btThread.onRun(bluetoothThreadMain);
-  btThread.setInterval(100);
+  btSendThread.onRun(bluetoothSendThreadMain);
+  // We will only run this thread when the ammo is decremented,
+  // so we don't want any other internal interfering
+  btSendThread.setInterval(0);
+  btReceiveThread.onRun(bluetoothReceiveThreadMain);
+  btReceiveThread.setInterval(100);
 }
 
 void testBarsAreWorking() {
@@ -206,11 +211,22 @@ void testNumbers() {
   delay(1000);
 }
 
-void deincrementAmmo() {
+bool deincrementAmmo() {
   if (amountOfAmmo > 0 && timeLapse >= SPEED) {
     turnOffDisplay();
     amountOfAmmo--;
     timeLapse = 0;
+    return true;
+  }
+  return false;
+}
+
+void updateBluetoothAmmo() {
+  if (btSendThread.shouldRun()) {
+    aci_evt_opcode_t status = BTLEserial.getState();
+    if (status == ACI_EVT_CONNECTED) {
+          btSendThread.run();
+    }
   }
 }
 
@@ -264,6 +280,11 @@ void displayNumber(boolean isOn, int digit) {
   }
 }
 
+void reload() {
+  amountOfAmmo = 30;
+  updateBluetoothAmmo();
+}
+
 char * readBluetooth(Adafruit_BLE_UART BTLEserial) {
   // Lets see if there's any data for us!
   int bytesavailable = BTLEserial.available();
@@ -291,7 +312,7 @@ void sendAmmoOverBluetooth() {
   sendBluetooth(BTLEserial, (uint8_t*)str, strlength);
 }
 
-boolean checkForReloadCommand() {
+bool checkForReloadCommand() {
   if (BTLEserial.available() > 0) {
     char * message = readBluetooth(BTLEserial);
     int result = strncmp(message, RELOAD_COMMAND, RELOAD_COMMAND_LENGTH);
@@ -303,11 +324,16 @@ boolean checkForReloadCommand() {
   return false;
 }
 
-void bluetoothThreadMain() {
+// Called every time btSendThread is ran
+void bluetoothSendThreadMain() {
   sendAmmoOverBluetooth();
-  boolean reload = checkForReloadCommand();
-  if (reload) {
-    amountOfAmmo = 30;
+}
+
+// Called every time btReceiveThread is ran
+void bluetoothReceiveThreadMain() {
+  bool needsReload = checkForReloadCommand();
+  if (needsReload) {
+    reload();
   }
 }
 
@@ -315,28 +341,45 @@ void bluetoothThreadMain() {
 void loop() {
   //  testBarsAreWorking();
   //  testNumbers();
+  // Reload after a second if we're out of ammo
   if (amountOfAmmo == 0) {
     delay(1000);
-    amountOfAmmo = 30;
+    reload();
+  }
+
+  // Check the BT connection for any incoming data
+  BTLEserial.pollACI();
+  if (btReceiveThread.shouldRun()) {
+    aci_evt_opcode_t status = BTLEserial.getState();
+    if (status == ACI_EVT_CONNECTED) {
+          btReceiveThread.run();
+    }
   }
 
   turnOffDisplay();
   bool switchStatus = digitalRead(SWITCH);
   int buttonState = digitalRead(BUTTON_PIN);
+  bool sendBluetoothUpdate = false;
 
   // //Single Shot Display
   if (switchStatus) {
     if (buttonState != pastButtonState) {
       if (!buttonState == HIGH) {
         Serial.println(amountOfAmmo);
-        deincrementAmmo();
+        bool ammoChanged = deincrementAmmo();
+        if (ammoChanged) {
+          sendBluetoothUpdate = true;
+        }
       }
     }
     pastButtonState = buttonState;
   } else {   //Machine Gun Display
     if (buttonState == LOW) {
       Serial.println(amountOfAmmo);
-      deincrementAmmo();
+      bool ammoChanged = deincrementAmmo();
+      if (ammoChanged) {
+        sendBluetoothUpdate = true;
+      }
     }
   }
 
@@ -352,14 +395,8 @@ void loop() {
   }
   displayAmmo();
 
-  // Grab the ammo count and send it over bluetooth
-  if (btThread.shouldRun()) {
-    BTLEserial.pollACI();
-    aci_evt_opcode_t status = BTLEserial.getState();
-
-    if (status == ACI_EVT_CONNECTED) {
-          btThread.run();
-    }
+  if (sendBluetoothUpdate) {
+    updateBluetoothAmmo();
   }
 
   delay(5);
