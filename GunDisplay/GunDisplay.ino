@@ -23,6 +23,7 @@ Adafruit_BLE_UART BTLEserial = Adafruit_BLE_UART(ADAFRUITBLE_REQ, ADAFRUITBLE_RD
 Thread btThread = Thread();
 
 const char RELOAD_COMMAND[] = "Reload";
+const int RELOAD_COMMAND_LENGTH = 6;
 const int MAX_AMMO = 30;
 int amountOfAmmo = MAX_AMMO;
 
@@ -293,7 +294,7 @@ void sendAmmoOverBluetooth() {
 boolean checkForReloadCommand() {
   if (BTLEserial.available() > 0) {
     char * message = readBluetooth(BTLEserial);
-    int result = strcmp(message, RELOAD_COMMAND);
+    int result = strncmp(message, RELOAD_COMMAND, RELOAD_COMMAND_LENGTH);
     if (result == 0) {
       Serial.println("Reload");
       return true;
@@ -305,12 +306,19 @@ boolean checkForReloadCommand() {
 void bluetoothThreadMain() {
   sendAmmoOverBluetooth();
   boolean reload = checkForReloadCommand();
+  if (reload) {
+    amountOfAmmo = 30;
+  }
 }
 
 // the loop function runs over and over again forever
 void loop() {
   //  testBarsAreWorking();
   //  testNumbers();
+  if (amountOfAmmo == 0) {
+    delay(1000);
+    amountOfAmmo = 30;
+  }
 
   turnOffDisplay();
   bool switchStatus = digitalRead(SWITCH);
@@ -353,7 +361,6 @@ void loop() {
           btThread.run();
     }
   }
-
 
   delay(5);
 }
