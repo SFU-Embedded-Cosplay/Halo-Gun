@@ -15,9 +15,9 @@
  Connect CLK/MISO/MOSI to hardware SPI
  e.g. On UNO & compatible: CLK = 13, MISO = 12, MOSI = 11
 */
-#define ADAFRUITBLE_REQ 10
-#define ADAFRUITBLE_RDY 2     // This should be an interrupt pin, on Uno thats #2 or #3
-#define ADAFRUITBLE_RST 9
+#define ADAFRUITBLE_REQ 19
+#define ADAFRUITBLE_RDY 21     // This should be an interrupt pin, on Uno thats #2 or #3
+#define ADAFRUITBLE_RST 20
 
 Adafruit_BLE_UART BTLEserial = Adafruit_BLE_UART(ADAFRUITBLE_REQ, ADAFRUITBLE_RDY, ADAFRUITBLE_RST);
 Thread btSendThread = Thread();
@@ -36,18 +36,18 @@ int SPEED = 9; //How fast the numbers deincrement when in machine gun mode
 int timeLapse = 0; //A counter for the determing when to deincrement machine gun mode ammo
 
 //Pins of the display
-const int DIGIT_TOP_BAR = 14; //2
-const int DIGIT_MIDDLE_VERTICAL_BARS = 15; //3
-const int DIGIT_MIDDLE_HORIZONTAL_BARS = 16; //4
-const int DIGIT_UPPER_RIGHT_VERTICAL_BAR = 17; //5
-const int DIGIT_LOWER_RIGHT_VERTICAL_BAR = 18; //6
-const int DIGIT_LOWER_LEFT_VERTICAL_BAR = 19; //7
-const int DIGIT_UPPER_LEFT_VERTICAL_BAR = 3; //8
-const int DIGIT_BOTTOM_BAR = 4; //9
-const int BUTTON_PIN = 5; //10
-const int LEFT_NUMBER_DISPLAY = 6; //11
-const int RIGHT_NUMBER_DISPLAY = 7; //12
-const int SWITCH = 8; //13
+const int DIGIT_TOP_BAR = 23; //14
+const int DIGIT_MIDDLE_VERTICAL_BARS = 33; //15
+const int DIGIT_MIDDLE_HORIZONTAL_BARS = 25; //16
+const int DIGIT_UPPER_RIGHT_VERTICAL_BAR = 35; //17
+const int DIGIT_LOWER_RIGHT_VERTICAL_BAR = 27; //18
+const int DIGIT_LOWER_LEFT_VERTICAL_BAR = 37; //19
+const int DIGIT_UPPER_LEFT_VERTICAL_BAR = 29; //3
+const int DIGIT_BOTTOM_BAR = 39; //4
+const int BUTTON_PIN = 41; //5
+const int LEFT_NUMBER_DISPLAY = 31; //6
+const int RIGHT_NUMBER_DISPLAY = 43; //7
+const int SWITCH = 42; //8
 
 //turns on and off led bars
 void displayLEDBar(int pinNumber, boolean isOn) {
