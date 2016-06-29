@@ -53,43 +53,6 @@ void setup() {
   btReceiveThread.onRun(bluetoothReceiveThreadMain);
   btReceiveThread.setInterval(100);
 }
-/*
-void testBarsAreWorking() {
-  displayLEDBar(DIGIT_TOP_BAR, true);
-  delay(1000);              // wait for a second
-  displayLEDBar(DIGIT_TOP_BAR, false);
-  displayLEDBar(DIGIT_MIDDLE_VERTICAL_BARS, true);
-  delay(1000);              // wait for a second
-  displayLEDBar(DIGIT_MIDDLE_VERTICAL_BARS, false);
-  displayLEDBar(DIGIT_MIDDLE_HORIZONTAL_BARS, true);
-  delay(1000);              // wait for a second
-  displayLEDBar(DIGIT_MIDDLE_HORIZONTAL_BARS, false);
-  displayLEDBar(DIGIT_UPPER_RIGHT_VERTICAL_BAR, true);
-  delay(1000);              // wait for a second
-  displayLEDBar(DIGIT_UPPER_RIGHT_VERTICAL_BAR, false);
-  displayLEDBar(DIGIT_LOWER_RIGHT_VERTICAL_BAR, true);
-  delay(1000);              // wait for a second
-  displayLEDBar(DIGIT_LOWER_RIGHT_VERTICAL_BAR, false);
-  displayLEDBar(DIGIT_UPPER_LEFT_VERTICAL_BAR, true);
-  delay(1000);              // wait for a second
-  displayLEDBar(DIGIT_UPPER_LEFT_VERTICAL_BAR, false);
-  displayLEDBar(DIGIT_LOWER_LEFT_VERTICAL_BAR, true);
-  delay(1000);              // wait for a second
-  displayLEDBar(DIGIT_LOWER_LEFT_VERTICAL_BAR, false);
-  displayLEDBar(DIGIT_BOTTOM_BAR, true);
-  delay(1000);              // wait for a second
-  displayLEDBar(DIGIT_BOTTOM_BAR, false);
-}
-
-void testNumbers() {
-  int onesCase = amountOfAmmo % 10;
-  displayNumber(false, onesCase);
-  amountOfAmmo++;
-  onesCase = amountOfAmmo % 10;
-  displayNumber(true, onesCase);
-  delay(1000);
-}
-*/
 
 void updateBluetoothAmmo() {
   if (btSendThread.shouldRun()) {
