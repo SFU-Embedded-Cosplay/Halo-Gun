@@ -120,11 +120,25 @@ void bluetoothReceiveThreadMain() {
   }
 }
 
+// delay for a given amount of time to avoid running on the main loop
+// while still being able to do work in the background like refresh the
+// 14-segment display
+void wait(int durationInMilliseconds) {
+    int currentTimeThatHasBeenWaited = 0;
+    const int WAIT_INCREMENT = 5;
+
+    while (currentTimeThatHasBeenWaited < durationInMilliseconds) {
+        delay(WAIT_INCREMENT);
+        display.changeDisplaySide();
+        currentTimeThatHasBeenWaited += WAIT_INCREMENT;
+    }
+}
+
 // the loop function runs over and over again forever
 void loop() {
   // Reload after a second if we're out of ammo
   if (display.getCurrentAmmo() == 0) {
-    delay(1000);
+    wait(1000);
     display.reload();
   }
 
