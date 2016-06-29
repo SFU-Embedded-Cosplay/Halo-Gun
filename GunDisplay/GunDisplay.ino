@@ -7,6 +7,7 @@
 #include <SPI.h>
 #include "Adafruit_BLE_UART.h"
 #include <Thread.h>
+#include "AmmoDisplay.h"
 
 #define HIGH 0x1
 #define LOW  0x0
@@ -15,9 +16,9 @@
  Connect CLK/MISO/MOSI to hardware SPI
  e.g. On UNO & compatible: CLK = 13, MISO = 12, MOSI = 11
 */
-#define ADAFRUITBLE_REQ 19
-#define ADAFRUITBLE_RDY 21     // This should be an interrupt pin, on Uno thats #2 or #3
-#define ADAFRUITBLE_RST 20
+#define ADAFRUITBLE_REQ 3
+#define ADAFRUITBLE_RDY 2     // This should be an interrupt pin, on Uno thats #2 or #3
+#define ADAFRUITBLE_RST 4
 
 Adafruit_BLE_UART BTLEserial = Adafruit_BLE_UART(ADAFRUITBLE_REQ, ADAFRUITBLE_RDY, ADAFRUITBLE_RST);
 Thread btSendThread = Thread();
@@ -25,129 +26,21 @@ Thread btReceiveThread = Thread();
 
 const char RELOAD_COMMAND[] = "Reload";
 const int RELOAD_COMMAND_LENGTH = 6;
-const int MAX_AMMO = 30;
-int amountOfAmmo = MAX_AMMO;
+const int MAX_AMMO = 35;
+
+AmmoDisplay display(MAX_AMMO);
 
 int pastButtonState = 0;     // previous state of the button
 
-boolean showLeftNumber = true; //If false, showRightNumber
-
-int SPEED = 9; //How fast the numbers deincrement when in machine gun mode
-int timeLapse = 0; //A counter for the determing when to deincrement machine gun mode ammo
-
-//Pins of the display
-const int DIGIT_TOP_BAR = 23; //14
-const int DIGIT_MIDDLE_VERTICAL_BARS = 33; //15
-const int DIGIT_MIDDLE_HORIZONTAL_BARS = 25; //16
-const int DIGIT_UPPER_RIGHT_VERTICAL_BAR = 35; //17
-const int DIGIT_LOWER_RIGHT_VERTICAL_BAR = 27; //18
-const int DIGIT_LOWER_LEFT_VERTICAL_BAR = 37; //19
-const int DIGIT_UPPER_LEFT_VERTICAL_BAR = 29; //3
-const int DIGIT_BOTTOM_BAR = 39; //4
 const int BUTTON_PIN = 41; //5
-const int LEFT_NUMBER_DISPLAY = 31; //6
-const int RIGHT_NUMBER_DISPLAY = 43; //7
 const int SWITCH = 42; //8
-
-//turns on and off led bars
-void displayLEDBar(int pinNumber, boolean isOn) {
-  if (isOn == true) {
-    digitalWrite(pinNumber, HIGH);
-  } else {
-    digitalWrite(pinNumber, LOW);
-  }
-}
-
-int displayNumberZero(boolean isOn) {
-  displayLEDBar(DIGIT_TOP_BAR, isOn);
-  displayLEDBar(DIGIT_BOTTOM_BAR, isOn);
-  displayLEDBar(DIGIT_UPPER_RIGHT_VERTICAL_BAR, isOn);
-  displayLEDBar(DIGIT_LOWER_RIGHT_VERTICAL_BAR, isOn);
-  displayLEDBar(DIGIT_LOWER_LEFT_VERTICAL_BAR, isOn);
-  displayLEDBar(DIGIT_UPPER_LEFT_VERTICAL_BAR, isOn);
-  return 0;
-}
-
-int displayNumberOne(boolean isOn) {
-  displayLEDBar(DIGIT_MIDDLE_VERTICAL_BARS, isOn);
-  return 1;
-}
-
-int displayNumberTwo(boolean isOn) {
-  displayLEDBar(DIGIT_TOP_BAR, isOn);
-  displayLEDBar(DIGIT_BOTTOM_BAR, isOn);
-  displayLEDBar(DIGIT_MIDDLE_HORIZONTAL_BARS, isOn);
-  displayLEDBar(DIGIT_UPPER_RIGHT_VERTICAL_BAR, isOn);
-  displayLEDBar(DIGIT_LOWER_LEFT_VERTICAL_BAR, isOn);
-  return 2;
-}
-
-int displayNumberThree(boolean isOn) {
-  displayLEDBar(DIGIT_TOP_BAR, isOn);
-  displayLEDBar(DIGIT_BOTTOM_BAR, isOn);
-  displayLEDBar(DIGIT_MIDDLE_HORIZONTAL_BARS, isOn);
-  displayLEDBar(DIGIT_UPPER_RIGHT_VERTICAL_BAR, isOn);
-  displayLEDBar(DIGIT_LOWER_RIGHT_VERTICAL_BAR, isOn);
-  return 3;
-}
-
-int displayNumberFour(boolean isOn) {
-  displayLEDBar(DIGIT_UPPER_RIGHT_VERTICAL_BAR, isOn);
-  displayLEDBar(DIGIT_LOWER_RIGHT_VERTICAL_BAR, isOn);
-  displayLEDBar(DIGIT_MIDDLE_HORIZONTAL_BARS, isOn);
-  displayLEDBar(DIGIT_UPPER_LEFT_VERTICAL_BAR, isOn);
-  return 4;
-}
-
-int displayNumberFive(boolean isOn) {
-  displayLEDBar(DIGIT_TOP_BAR, isOn);
-  displayLEDBar(DIGIT_BOTTOM_BAR, isOn);
-  displayLEDBar(DIGIT_MIDDLE_HORIZONTAL_BARS, isOn);
-  displayLEDBar(DIGIT_LOWER_RIGHT_VERTICAL_BAR, isOn);
-  displayLEDBar(DIGIT_UPPER_LEFT_VERTICAL_BAR, isOn);
-  return 5;
-}
-
-int displayNumberSix(boolean isOn) {
-  displayNumberFive(isOn);
-  displayLEDBar(DIGIT_LOWER_LEFT_VERTICAL_BAR, isOn);
-  return 6;
-}
-
-int displayNumberSeven(boolean isOn) {
-  displayLEDBar(DIGIT_TOP_BAR, isOn);
-  displayLEDBar(DIGIT_UPPER_RIGHT_VERTICAL_BAR, isOn);
-  displayLEDBar(DIGIT_LOWER_RIGHT_VERTICAL_BAR, isOn);
-  return 7;
-}
-
-int displayNumberEight(boolean isOn) {
-  displayNumberSix(isOn);
-  displayLEDBar(DIGIT_UPPER_RIGHT_VERTICAL_BAR, isOn);
-  return 8;
-}
-
-int displayNumberNine(boolean isOn) {
-  displayNumberSeven(isOn);
-  displayLEDBar(DIGIT_MIDDLE_HORIZONTAL_BARS, isOn);
-  displayLEDBar(DIGIT_UPPER_LEFT_VERTICAL_BAR, isOn);
-  return 9;
-}
 
 // the setup function runs once when you press reset or power the board
 void setup() {
   // initialize digital pin 13 as an output.
-  pinMode(DIGIT_TOP_BAR, OUTPUT);
-  pinMode(DIGIT_BOTTOM_BAR, OUTPUT);
-  pinMode(DIGIT_MIDDLE_VERTICAL_BARS, OUTPUT);
-  pinMode(DIGIT_MIDDLE_HORIZONTAL_BARS, OUTPUT);
-  pinMode(DIGIT_UPPER_RIGHT_VERTICAL_BAR, OUTPUT);
-  pinMode(DIGIT_LOWER_RIGHT_VERTICAL_BAR, OUTPUT);
-  pinMode(DIGIT_UPPER_LEFT_VERTICAL_BAR, OUTPUT);
-  pinMode(DIGIT_LOWER_LEFT_VERTICAL_BAR, OUTPUT);
+
+  display.init();
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  pinMode(LEFT_NUMBER_DISPLAY, OUTPUT);
-  pinMode(RIGHT_NUMBER_DISPLAY, OUTPUT);
   pinMode(SWITCH, INPUT_PULLUP);
 
   Serial.begin(9600);
@@ -160,7 +53,7 @@ void setup() {
   btReceiveThread.onRun(bluetoothReceiveThreadMain);
   btReceiveThread.setInterval(100);
 }
-
+/*
 void testBarsAreWorking() {
   displayLEDBar(DIGIT_TOP_BAR, true);
   delay(1000);              // wait for a second
@@ -188,20 +81,6 @@ void testBarsAreWorking() {
   displayLEDBar(DIGIT_BOTTOM_BAR, false);
 }
 
-void turnOffDisplay() {
-
-  displayNumberZero(false);
-  displayNumberOne(false);
-  displayNumberTwo(false);
-  displayNumberThree(false);
-  displayNumberFour(false);
-  displayNumberFive(false);
-  displayNumberSix(false);
-  displayNumberSeven(false);
-  displayNumberEight(false);
-  displayNumberNine(false);
-}
-
 void testNumbers() {
   int onesCase = amountOfAmmo % 10;
   displayNumber(false, onesCase);
@@ -210,16 +89,7 @@ void testNumbers() {
   displayNumber(true, onesCase);
   delay(1000);
 }
-
-bool deincrementAmmo() {
-  if (amountOfAmmo > 0 && timeLapse >= SPEED) {
-    turnOffDisplay();
-    amountOfAmmo--;
-    timeLapse = 0;
-    return true;
-  }
-  return false;
-}
+*/
 
 void updateBluetoothAmmo() {
   if (btSendThread.shouldRun()) {
@@ -230,58 +100,8 @@ void updateBluetoothAmmo() {
   }
 }
 
-void displayAmmo() {
-  timeLapse++;
-  Serial.println(amountOfAmmo);
-  int tensCase = amountOfAmmo / 10;
-  int onesCase = amountOfAmmo % 10;
-  if (showLeftNumber) {
-    displayNumber(true, tensCase);
-  } else {
-    displayNumber(true, onesCase);
-  }
-
-}
-
-void displayNumber(boolean isOn, int digit) {
-  switch (digit) {
-    case 0:
-      displayNumberZero(isOn);
-      break;
-    case 1:
-      displayNumberOne(isOn);
-      break;
-    case 2:
-      displayNumberTwo(isOn);
-      break;
-    case 3:
-      displayNumberThree(isOn);
-      break;
-    case 4:
-      displayNumberFour(isOn);
-      break;
-    case 5:
-      displayNumberFive(isOn);
-      break;
-    case 6:
-      displayNumberSix(isOn);
-      break;
-    case 7:
-      displayNumberSeven(isOn);
-      break;
-    case 8:
-      displayNumberEight(isOn);
-      break;
-    case 9:
-      displayNumberNine(isOn);
-      break;
-    default:
-      break;
-  }
-}
-
 void reload() {
-  amountOfAmmo = 30;
+  display.reload();
   updateBluetoothAmmo();
 }
 
@@ -306,9 +126,9 @@ void sendBluetooth(Adafruit_BLE_UART BTLEserial, uint8_t * sendbuffer, char send
 }
 
 void sendAmmoOverBluetooth() {
-  char strlength = amountOfAmmo >= 10 ? 3 : 2;
+  char strlength = display.getCurrentAmmo() >= 10 ? 3 : 2;
   char str[strlength];
-  sprintf(str, "%d", amountOfAmmo);
+  sprintf(str, "%d", display.getCurrentAmmo());
   sendBluetooth(BTLEserial, (uint8_t*)str, strlength);
 }
 
@@ -333,7 +153,7 @@ void bluetoothSendThreadMain() {
 void bluetoothReceiveThreadMain() {
   bool needsReload = checkForReloadCommand();
   if (needsReload) {
-    reload();
+    display.reload();
   }
 }
 
@@ -342,9 +162,9 @@ void loop() {
   //  testBarsAreWorking();
   //  testNumbers();
   // Reload after a second if we're out of ammo
-  if (amountOfAmmo == 0) {
+  if (display.getCurrentAmmo() == 0) {
     delay(1000);
-    reload();
+    display.reload();
   }
 
   // Check the BT connection for any incoming data
@@ -356,7 +176,7 @@ void loop() {
     }
   }
 
-  turnOffDisplay();
+  display.turnOffDisplay();
   bool switchStatus = digitalRead(SWITCH);
   int buttonState = digitalRead(BUTTON_PIN);
   bool sendBluetoothUpdate = false;
@@ -365,8 +185,8 @@ void loop() {
   if (switchStatus) {
     if (buttonState != pastButtonState) {
       if (!buttonState == HIGH) {
-        Serial.println(amountOfAmmo);
-        bool ammoChanged = deincrementAmmo();
+        Serial.println(display.getCurrentAmmo());
+        bool ammoChanged = display.decrementAmmo();
         if (ammoChanged) {
           sendBluetoothUpdate = true;
         }
@@ -375,8 +195,8 @@ void loop() {
     pastButtonState = buttonState;
   } else {   //Machine Gun Display
     if (buttonState == LOW) {
-      Serial.println(amountOfAmmo);
-      bool ammoChanged = deincrementAmmo();
+      Serial.println(display.getCurrentAmmo());
+      bool ammoChanged = display.decrementAmmo();
       if (ammoChanged) {
         sendBluetoothUpdate = true;
       }
@@ -384,16 +204,8 @@ void loop() {
   }
 
   //Alternate between the 2 7-segment displays
-  if (showLeftNumber) {
-    digitalWrite(LEFT_NUMBER_DISPLAY, HIGH);
-    digitalWrite(RIGHT_NUMBER_DISPLAY, LOW);
-    showLeftNumber = false;
-  } else {
-    digitalWrite(LEFT_NUMBER_DISPLAY, LOW);
-    digitalWrite(RIGHT_NUMBER_DISPLAY, HIGH);
-    showLeftNumber = true;
-  }
-  displayAmmo();
+  display.changeDisplaySide();
+  display.refresh();
 
   if (sendBluetoothUpdate) {
     updateBluetoothAmmo();
