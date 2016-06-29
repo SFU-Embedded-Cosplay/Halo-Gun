@@ -26,7 +26,7 @@ Thread btReceiveThread = Thread();
 
 const char RELOAD_COMMAND[] = "Reload";
 const int RELOAD_COMMAND_LENGTH = 6;
-const int MAX_AMMO = 35;
+const int MAX_AMMO = 30;
 
 AmmoDisplay display(MAX_AMMO);
 
