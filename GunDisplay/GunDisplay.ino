@@ -122,8 +122,6 @@ void bluetoothReceiveThreadMain() {
 
 // the loop function runs over and over again forever
 void loop() {
-  //  testBarsAreWorking();
-  //  testNumbers();
   // Reload after a second if we're out of ammo
   if (display.getCurrentAmmo() == 0) {
     delay(1000);
