@@ -1,3 +1,4 @@
+
 /*
   GunDisplay
 
@@ -5,7 +6,7 @@
  */
 
 #include <SPI.h>
-#include "Adafruit_BLE_UART.h"
+#include <Adafruit_BLE_UART.h>
 #include <Thread.h>
 #include "AmmoDisplay.h"
 
@@ -16,9 +17,9 @@
  Connect CLK/MISO/MOSI to hardware SPI
  e.g. On UNO & compatible: CLK = 13, MISO = 12, MOSI = 11
 */
-#define ADAFRUITBLE_REQ 3
-#define ADAFRUITBLE_RDY 2     // This should be an interrupt pin, on Uno thats #2 or #3
-#define ADAFRUITBLE_RST 4
+#define ADAFRUITBLE_REQ 19
+#define ADAFRUITBLE_RDY 21     // This should be an interrupt pin, on Uno thats #2 or #3
+#define ADAFRUITBLE_RST 20
 
 Adafruit_BLE_UART BTLEserial = Adafruit_BLE_UART(ADAFRUITBLE_REQ, ADAFRUITBLE_RDY, ADAFRUITBLE_RST);
 Thread btSendThread = Thread();
