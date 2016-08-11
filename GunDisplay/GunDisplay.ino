@@ -27,11 +27,16 @@ Thread btReceiveThread = Thread();
 
 const char RELOAD_COMMAND[] = "Reload";
 const int RELOAD_COMMAND_LENGTH = 6;
+const char SINGLE_SHOT_COMMAND[] = "SingleShot";
+const int SINGLE_SHOT_COMMAND_LENGTH = 10;
+const char FULL_AUTO_COMMAND[] = "FullAuto";
+const int FULL_AUTO_COMMAND_LENGTH = 8;
 const int MAX_AMMO = 30;
 
 AmmoDisplay display(MAX_AMMO);
 
 int pastButtonState = 0;     // previous state of the button
+bool firingMode = false;
 
 const int BUTTON_PIN = 41; //5
 const int SWITCH = 42; //8
@@ -96,14 +101,29 @@ void sendAmmoOverBluetooth() {
   sendBluetooth(BTLEserial, (uint8_t*)str, strlength);
 }
 
-bool checkForReloadCommand() {
-  if (BTLEserial.available() > 0) {
-    char * message = readBluetooth(BTLEserial);
-    int result = strncmp(message, RELOAD_COMMAND, RELOAD_COMMAND_LENGTH);
-    if (result == 0) {
-      Serial.println("Reload");
-      return true;
-    }
+bool checkForReloadCommand(char * message) {
+  int result = strncmp(message, RELOAD_COMMAND, RELOAD_COMMAND_LENGTH);
+  if (result == 0) {
+    Serial.println("Reload");
+    return true;
+  }
+  return false;
+}
+
+bool checkForSingleShotCommand(char * message) {
+  int result = strncmp(message, SINGLE_SHOT_COMMAND, SINGLE_SHOT_COMMAND_LENGTH);
+  if (result == 0) {
+    Serial.println("Single shot");
+    return true;
+  }
+  return false;
+}
+
+bool checkForFullAutoCommand(char * message) {
+  int result = strncmp(message, FULL_AUTO_COMMAND, FULL_AUTO_COMMAND_LENGTH);
+  if (result == 0) {
+    Serial.println("Full auto");
+    return true;
   }
   return false;
 }
@@ -115,10 +135,19 @@ void bluetoothSendThreadMain() {
 
 // Called every time btReceiveThread is ran
 void bluetoothReceiveThreadMain() {
-  bool needsReload = checkForReloadCommand();
-  if (needsReload) {
-    display.reload();
+  if (BTLEserial.available() > 0) {
+    char * message = readBluetooth(BTLEserial);
+    if (checkForReloadCommand(message)) {
+      display.reload();
+    }
+
+    if (checkForSingleShotCommand(message)) {
+      firingMode = true;
+    } else if (checkForFullAutoCommand(message)) {
+      firingMode = false;
+    }
   }
+  
 }
 
 // delay for a given amount of time to avoid running on the main loop
@@ -133,6 +162,12 @@ void wait(int durationInMilliseconds) {
         display.changeDisplaySide();
         currentTimeThatHasBeenWaited += WAIT_INCREMENT;
     }
+}
+
+bool getFiringModeStatus() {
+  //NOTE: use digitalRead(SWITCH) to check physical switch mode
+  //TODO: use both physical switch and bluetooth command to modify firing mode
+  return firingMode;
 }
 
 // the loop function runs over and over again forever
@@ -153,7 +188,7 @@ void loop() {
   }
 
   display.turnOffDisplay();
-  bool switchStatus = digitalRead(SWITCH);
+  bool switchStatus = getFiringModeStatus();
   int buttonState = digitalRead(BUTTON_PIN);
   bool sendBluetoothUpdate = false;
 
