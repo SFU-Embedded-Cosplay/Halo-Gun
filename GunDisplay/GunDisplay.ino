@@ -138,7 +138,7 @@ void bluetoothReceiveThreadMain() {
   if (BTLEserial.available() > 0) {
     char * message = readBluetooth(BTLEserial);
     if (checkForReloadCommand(message)) {
-      display.reload();
+      reload();
     }
 
     if (checkForSingleShotCommand(message)) {
@@ -175,7 +175,7 @@ void loop() {
   // Reload after a second if we're out of ammo
   if (display.getCurrentAmmo() == 0) {
     wait(1000);
-    display.reload();
+    reload();
   }
 
   // Check the BT connection for any incoming data
